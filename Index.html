@@ -4,30 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rent a Friend</title>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
-    authDomain: "rentafriendchat.firebaseapp.com",
-    databaseURL: "https://rentafriendchat-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "rentafriendchat",
-    storageBucket: "rentafriendchat.firebasestorage.app",
-    messagingSenderId: "994392281737",
-    appId: "1:994392281737:web:258c32ed98707be0baac58",
-    measurementId: "G-F14P70RT0Q"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-
-  // Your login/signup/logout/onAuthStateChanged code here...
-</script>
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
-  <!-- Style -->
   <style>
     * {
       box-sizing: border-box;
@@ -82,7 +62,7 @@
       transform: scale(1.05);
     }
 
-    input[type="text"] {
+    input[type="text"], input[type="email"], input[type="password"] {
       flex: 1;
       padding: 10px;
       margin: 10px 0;
@@ -161,7 +141,19 @@
 
   <nav>Rent a Friend</nav>
 
-  <!-- Login -->
+  <!-- 🔐 Auth Section -->
+  <section id="auth-section">
+    <h2>Login or Sign Up</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <br />
+    <button onclick="signUp()">Sign Up</button>
+    <button onclick="login()">Login</button>
+    <button onclick="logout()" style="display: none;" id="logoutBtn">Logout</button>
+    <p id="authStatus"></p>
+  </section>
+
+  <!-- 🧑 Start Chat -->
   <section id="loginSection">
     <h2>Start Chatting</h2>
     <input type="text" id="username" placeholder="Your name" />
@@ -169,7 +161,7 @@
     <button onclick="startChat()">Start Chat</button>
   </section>
 
-  <!-- Chat -->
+  <!-- 💬 Chat Section -->
   <section id="chatSection" style="display:none;">
     <h2>Private Chat</h2>
     <div id="messages"></div>
@@ -181,7 +173,7 @@
 
   <footer>© 2025 Rent a Friend. All rights reserved.</footer>
 
-  <!-- Firebase Script -->
+  <!-- 📜 Script -->
   <script type="module" src="script.js"></script>
 
 </body>
