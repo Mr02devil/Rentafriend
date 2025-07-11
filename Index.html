@@ -4,7 +4,26 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rent a Friend</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
+  const firebaseConfig = {
+    apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
+    authDomain: "rentafriendchat.firebaseapp.com",
+    databaseURL: "https://rentafriendchat-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "rentafriendchat",
+    storageBucket: "rentafriendchat.firebasestorage.app",
+    messagingSenderId: "994392281737",
+    appId: "1:994392281737:web:258c32ed98707be0baac58",
+    measurementId: "G-F14P70RT0Q"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Your login/signup/logout/onAuthStateChanged code here...
+</script>
   <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
