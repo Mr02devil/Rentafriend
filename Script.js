@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
-// Firebase config
+// Firebase Config
 const firebaseConfig = {
   apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
   authDomain: "rentafriendchat.firebaseapp.com",
@@ -14,12 +14,14 @@ const firebaseConfig = {
   measurementId: "G-F14P70RT0Q"
 };
 
-// Init Firebase
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const db = getDatabase(app);
 const auth = getAuth(app);
 
-// 🔐 Auth Functions
+// Global variables
+let chatRoom = "";
+
+// Authentication Functions
 window.signUp = function () {
   const email = document.getElementById("email").value;
   const pass = document.getElementById("password").value;
@@ -54,36 +56,57 @@ window.logout = function () {
   });
 };
 
-// Detect login status
+// Detect if user is logged in
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    document.querySelector(".chatbox").style.display = "block";
+    document.getElementById("chatSection").style.display = "none";
     document.getElementById("logoutBtn").style.display = "inline";
+    document.getElementById("authStatus").innerText = "Logged in as " + user.email;
   } else {
-    document.querySelector(".chatbox").style.display = "none";
+    document.getElementById("chatSection").style.display = "none";
     document.getElementById("logoutBtn").style.display = "none";
   }
 });
 
-// 💬 Chat Functions
-window.sendMessage = function () {
-  const msgBox = document.getElementById("msgInput");
-  const message = msgBox.value.trim();
+// Start Chat
+window.startChat = function () {
+  const user = document.getElementById("username").value.trim().toLowerCase();
+  const friend = document.getElementById("friendname").value.trim().toLowerCase();
 
-  if (message !== "") {
-    const chatRef = ref(database, "chat");
-    push(chatRef, {
-      message: message,
-      time: new Date().toLocaleTimeString()
-    });
-    msgBox.value = "";
+  if (user === "" || friend === "") {
+    alert("Please enter both names");
+    return;
   }
+
+  chatRoom = [user, friend].sort().join("_");
+
+  document.getElementById("chatSection").style.display = "block";
+  document.getElementById("loginSection").style.display = "none";
+
+  const messagesRef = ref(db, "chats/" + chatRoom);
+  onChildAdded(messagesRef, function (snapshot) {
+    const data = snapshot.val();
+    const div = document.createElement("div");
+    div.className = "message";
+    div.textContent = `[${data.time}] ${data.sender}: ${data.message}`;
+    document.getElementById("messages").appendChild(div);
+    document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+  });
 };
 
-const chatRef = ref(database, "chat");
-onChildAdded(chatRef, function (snapshot) {
-  const data = snapshot.val();
-  const div = document.createElement("div");
-  div.textContent = `[${data.time}] ${data.message}`;
-  document.getElementById("messages").appendChild(div);
-});
+// Send Message
+window.sendMessage = function () {
+  const message = document.getElementById("msgInput").value.trim();
+  const sender = document.getElementById("username").value.trim();
+
+  if (message === "") return;
+
+  const chatRef = ref(db, "chats/" + chatRoom);
+  push(chatRef, {
+    sender: sender,
+    message: message,
+    time: new Date().toLocaleTimeString()
+  });
+
+  document.getElementById("msgInput").value = "";
+};
