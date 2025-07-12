@@ -1,219 +1,56 @@
-// Firebase v11 CDN
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onChildAdded
-} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
-
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
-  authDomain: "rentafriendchat.firebaseapp.com",
-  databaseURL: "https://rentafriendchat-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "rentafriendchat",
-  storageBucket: "rentafriendchat.appspot.com",
-  messagingSenderId: "994392281737",
-  appId: "1:994392281737:web:258c32ed98707be0baac58"
-};
-
-// Init Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-
-// 🔐 Auth Functions
-window.signUp = function () {
-  const email = document.getElementById("email").value.trim();
-  const pass = document.getElementById("password").value;
-
-  createUserWithEmailAndPassword(auth, email, pass)
-    .then(() => {
-      document.getElementById("authStatus").innerText = "✅ Signed up!";
-    })
-    .catch(err => {
-      document.getElementById("authStatus").innerText = `❌ ${err.message}`;
-    });
-};
-
-window.login = function () {
-  const email = document.getElementById("email").value.trim();
-  const pass = document.getElementById("password").value;
-
-  signInWithEmailAndPassword(auth, email, pass)
-    .then(() => {
-      document.getElementById("authStatus").innerText = "✅ Logged in!";
-    })
-    .catch(err => {
-      document.getElementById("authStatus").innerText = `❌ ${err.message}`;
-    });
-};
-
-window.logout = function () {
-  signOut(auth).then(() => {
-    document.getElementById("authStatus").innerText = "🚪 Logged out!";
-  });
-};
-
-onAuthStateChanged(auth, user => {
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (user) {
-    logoutBtn.style.display = "inline-block";
-    document.getElementById("authStatus").innerText = `👋 Welcome, ${user.email}`;
-  } else {
-    logoutBtn.style.display = "none";
-    document.getElementById("authStatus").innerText = "";
-  }
-});
-
-// 💬 Chat
-let chatRoom = "";
-let currentUser = "";
-
-window.startChat = function () {
-  const uname = document.getElementById("username").value.trim();
-  const fname = document.getElementById("friendname").value.trim();
-
-  if (!uname || !fname) {
-    alert("Enter both names.");
-    return;
-  }
-
-  currentUser = uname;
-  chatRoom = [uname, fname].sort().join("_");
-
-  document.getElementById("loginSection").style.display = "none";
-  document.getElementById("chatSection").style.display = "block";
-
-  listenToChat(chatRoom);
-};
-
-window.sendMessage = function () {
-  const msg = document.getElementById("msgInput").value.trim();
-  if (!msg) return;
-
-  const chatRef = ref(db, "chats/" + chatRoom);
-  push(chatRef, {
-    user: currentUser,
-    message: msg,
-    time: new Date().toLocaleTimeString()
-  });
-
-  document.getElementById("msgInput").value = "";
-};
-
-function listenToChat(roomId) {
-  const chatRef = ref(db, "chats/" + roomId);
-  onChildAdded(chatRef, snap => {
-    const data = snap.val();
-    const div = document.createElement("div");
-    div.className = "message";
-    div.textContent = `[${data.time}] ${data.user}: ${data.message}`;
-    document.getElementById("messages").appendChild(div);
-    document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
-  });
-
-  listenForCalls(); // 📞 Enable call listener
-}
-
-// 📞 Video Call — WebRTC
-let peerConnection;
-let localStream;
-const servers = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-};
-
 window.startCall = async function () {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  document.getElementById("localVideo").srcObject = localStream;
+  try {
+    // 1. Get camera & mic
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById("localVideo").srcObject = localStream;
 
-  peerConnection = new RTCPeerConnection(servers);
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    // 2. Create PeerConnection
+    peerConnection = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
 
-  peerConnection.ontrack = e => {
-    document.getElementById("remoteVideo").srcObject = e.streams[0];
-  };
+    // 3. Add media tracks to peer connection
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
 
-  peerConnection.onicecandidate = e => {
-    if (e.candidate) {
-      push(ref(db, `calls/${chatRoom}/ice`), {
-        type: "candidate",
-        candidate: e.candidate.toJSON()
-      });
-    }
-  };
+    // 4. Handle remote stream
+    peerConnection.ontrack = event => {
+      console.log("📹 Remote stream received");
+      document.getElementById("remoteVideo").srcObject = event.streams[0];
+    };
 
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  push(ref(db, `calls/${chatRoom}`), {
-    type: "offer",
-    sdp: offer
-  });
-};
-
-window.endCall = function () {
-  if (peerConnection) peerConnection.close();
-  if (localStream) localStream.getTracks().forEach(t => t.stop());
-
-  document.getElementById("localVideo").srcObject = null;
-  document.getElementById("remoteVideo").srcObject = null;
-};
-
-// 📡 Listen for incoming calls
-function listenForCalls() {
-  const signalRef = ref(db, `calls/${chatRoom}`);
-  onChildAdded(signalRef, async snap => {
-    const data = snap.val();
-
-    if (!peerConnection) {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      document.getElementById("localVideo").srcObject = localStream;
-
-      peerConnection = new RTCPeerConnection(servers);
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-      peerConnection.ontrack = e => {
-        document.getElementById("remoteVideo").srcObject = e.streams[0];
-      };
-
-      peerConnection.onicecandidate = e => {
-        if (e.candidate) {
-          push(ref(db, `calls/${chatRoom}/ice`), {
-            type: "candidate",
-            candidate: e.candidate.toJSON()
-          });
-        }
-      };
-    }
-
-    if (data.type === "offer") {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      push(ref(db, `calls/${chatRoom}`), {
-        type: "answer",
-        sdp: answer
-      });
-    }
-
-    if (data.type === "answer") {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    }
-
-    if (data.type === "candidate") {
-      try {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      } catch (e) {
-        console.warn("ICE add error:", e);
+    // 5. Handle ICE candidates
+    peerConnection.onicecandidate = e => {
+      if (e.candidate) {
+        console.log("❄️ Sending ICE candidate");
+        push(ref(db, `calls/${chatRoom}/ice`), {
+          type: "candidate",
+          candidate: e.candidate.toJSON()
+        });
       }
-    }
-  });
-}
+    };
+
+    // 6. Create Offer
+    const offer = await peerConnection.createOffer();
+
+    // 7. Set local description, then push offer to Firebase
+    peerConnection.setLocalDescription(offer).then(() => {
+      const callRef = ref(db, `calls/${chatRoom}`);
+      push(callRef, {
+        type: "offer",
+        sdp: offer
+      })
+        .then(() => {
+          console.log("📡 Offer pushed to Firebase at /calls/" + chatRoom);
+        })
+        .catch(err => {
+          console.error("❌ Failed to push offer:", err);
+        });
+    });
+
+  } catch (err) {
+    console.error("🚫 Error starting call:", err);
+    alert("Camera/mic access denied or not supported.");
+  }
+};
