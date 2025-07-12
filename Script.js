@@ -1,8 +1,13 @@
-// Firebase Import
+// Import Firebase (v11 modular)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  push,
+  onChildAdded
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
-// Firebase Config
+// 🔐 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
   authDomain: "rentafriendchat.firebaseapp.com",
@@ -13,7 +18,7 @@ const firebaseConfig = {
   appId: "1:994392281737:web:258c32ed98707be0baac58"
 };
 
-// Initialize Firebase
+// ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
@@ -22,13 +27,13 @@ let currentUser = "";
 let peerConnection;
 let localStream;
 
-// Start Chat
+// ✅ Start Chat
 window.startChat = function () {
   const username = document.getElementById("username").value.trim();
   const friendname = document.getElementById("friendname").value.trim();
 
   if (!username || !friendname) {
-    alert("Please enter both names.");
+    alert("Enter both your name and your friend's name.");
     return;
   }
 
@@ -39,10 +44,10 @@ window.startChat = function () {
   document.getElementById("chatSection").style.display = "block";
 
   listenToChat(chatRoom);
-  listenForCalls();
+  listenForCalls(); // 📞 Listen for call signals
 };
 
-// Send Message
+// ✅ Send Chat Message
 window.sendMessage = function () {
   const msgBox = document.getElementById("msgInput");
   const message = msgBox.value.trim();
@@ -58,7 +63,7 @@ window.sendMessage = function () {
   }
 };
 
-// Listen to Chat
+// ✅ Listen to Chat Messages
 function listenToChat(roomId) {
   const chatRef = ref(db, "chats/" + roomId);
   onChildAdded(chatRef, function (snapshot) {
@@ -70,51 +75,51 @@ function listenToChat(roomId) {
   });
 }
 
-// Start Video Call
+// ✅ Start Call
 window.startCall = async function () {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    document.getElementById("localVideo").srcObject = localStream;
+  peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
 
-    peerConnection = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+  peerConnection.onicecandidate = e => {
+    if (e.candidate) {
+      push(ref(db, `calls/${chatRoom}`), {
+        type: "candidate",
+        candidate: e.candidate.toJSON()
+      });
+    }
+  };
 
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  peerConnection.ontrack = event => {
+    document.getElementById("remoteVideo").srcObject = event.streams[0];
+  };
 
-    peerConnection.ontrack = e => {
-      document.getElementById("remoteVideo").srcObject = e.streams[0];
-    };
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  document.getElementById("localVideo").srcObject = localStream;
 
-    peerConnection.onicecandidate = e => {
-      if (e.candidate) {
-        push(ref(db, `calls/${chatRoom}/ice`), {
-          type: "candidate",
-          candidate: e.candidate.toJSON()
-        });
-      }
-    };
+  const offer = await peerConnection.createOffer();
+  await peerConnection.setLocalDescription(offer);
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
+  push(ref(db, `calls/${chatRoom}`), {
+    type: "offer",
+    sdp: offer
+  });
 
-    push(ref(db, `calls/${chatRoom}`), {
-      type: "offer",
-      sdp: offer
-    });
-
-  } catch (err) {
-    alert("Camera or microphone access denied.");
-    console.error(err);
-  }
+  console.log("📡 Offer pushed...");
 };
 
-// Listen for Calls
+// ✅ Listen for Offers, Answers, ICE
 function listenForCalls() {
   const signalRef = ref(db, `calls/${chatRoom}`);
   onChildAdded(signalRef, async snap => {
     const data = snap.val();
+    console.log("📩 Signal received:", data.type);
 
     if (!peerConnection) {
-      peerConnection = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+      peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
 
       peerConnection.ontrack = event => {
         document.getElementById("remoteVideo").srcObject = event.streams[0];
@@ -122,7 +127,7 @@ function listenForCalls() {
 
       peerConnection.onicecandidate = e => {
         if (e.candidate) {
-          push(ref(db, `calls/${chatRoom}/ice`), {
+          push(ref(db, `calls/${chatRoom}`), {
             type: "candidate",
             candidate: e.candidate.toJSON()
           });
@@ -143,20 +148,17 @@ function listenForCalls() {
         type: "answer",
         sdp: answer
       });
-
+      console.log("📨 Answer sent.");
     } else if (data.type === "answer") {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+      console.log("✅ Answer received.");
     } else if (data.type === "candidate" && data.candidate) {
       try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log("🧊 ICE candidate added.");
       } catch (err) {
-        console.error("ICE error:", err);
+        console.error("❌ Failed to add ICE candidate:", err);
       }
     }
   });
 }
-
-// Auth placeholders
-window.signUp = window.login = window.logout = function () {
-  alert("Firebase Auth not implemented in this version.");
-};
