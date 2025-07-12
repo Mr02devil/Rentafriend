@@ -9,10 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    /* Paste your full CSS here or link external file */
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
@@ -57,7 +54,7 @@
     }
 
     h1, h2 {
-      color: #00ffff;
+      color: #ff80ff;
       text-align: center;
     }
 
@@ -74,7 +71,7 @@
     button {
       padding: 12px 20px;
       margin: 5px;
-      background-color: #007bff;
+      background-color: #ff3399;
       color: white;
       border: none;
       border-radius: 8px;
@@ -84,7 +81,7 @@
     }
 
     button:hover {
-      background-color: #0056b3;
+      background-color: #cc0066;
       transform: scale(1.05);
     }
 
@@ -115,13 +112,15 @@
   </style>
 </head>
 <body>
+  <!-- 🌌 Background video -->
   <video class="bg-video" autoplay muted loop playsinline>
-    <source src="https://www.w3schools.com/howto/rain.mp4" type="video/mp4">
+    <source src="https://cdn.pixabay.com/video/2023/05/12/164043-827951598_large.mp4" type="video/mp4" />
   </video>
 
   <div class="overlay">
     <nav>Rent a Friend</nav>
 
+    <!-- 🔐 Auth Section (placeholder for now) -->
     <section id="auth-section">
       <h2>Login or Sign Up</h2>
       <input type="email" id="email" placeholder="Email" />
@@ -133,6 +132,7 @@
       <p id="authStatus"></p>
     </section>
 
+    <!-- 🧑 Start Chat -->
     <section id="loginSection">
       <h2>Start Chatting</h2>
       <input type="text" id="username" placeholder="Your name" />
@@ -140,6 +140,7 @@
       <button onclick="startChat()">Start Chat</button>
     </section>
 
+    <!-- 💬 Chat + 📹 Call -->
     <section id="chatSection" style="display:none;">
       <h2>Private Chat</h2>
       <div id="messages"></div>
@@ -153,11 +154,11 @@
       <video id="remoteVideo" autoplay playsinline></video>
     </section>
 
+    <!-- 📜 Footer -->
     <footer>© 2025 Rent a Friend. All rights reserved.</footer>
   </div>
 
+  <!-- JavaScript -->
   <script type="module" src="script.js"></script>
 </body>
 </html>
-
-
