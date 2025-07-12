@@ -1,13 +1,8 @@
-// Import Firebase (v11 modular)
+// Firebase Imports (v11)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-import {
-  getDatabase,
-  ref,
-  push,
-  onChildAdded
-} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
-// 🔐 Firebase config
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCEel7eAWrZcm_SoQUUK5sRdku3M_FWB6s",
   authDomain: "rentafriendchat.firebaseapp.com",
@@ -18,24 +13,19 @@ const firebaseConfig = {
   appId: "1:994392281737:web:258c32ed98707be0baac58"
 };
 
-// ✅ Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-let chatRoom = "";
 let currentUser = "";
-let peerConnection;
+let chatRoom = "";
 let localStream;
+let peerConnection;
 
-// ✅ Start Chat
+// Chat setup
 window.startChat = function () {
   const username = document.getElementById("username").value.trim();
   const friendname = document.getElementById("friendname").value.trim();
-
-  if (!username || !friendname) {
-    alert("Enter both your name and your friend's name.");
-    return;
-  }
+  if (!username || !friendname) return alert("Enter both names!");
 
   currentUser = username;
   chatRoom = [username, friendname].sort().join("_");
@@ -43,31 +33,28 @@ window.startChat = function () {
   document.getElementById("loginSection").style.display = "none";
   document.getElementById("chatSection").style.display = "block";
 
-  listenToChat(chatRoom);
-  listenForCalls(); // 📞 Listen for call signals
+  listenToChat();
+  listenForCalls();
 };
 
-// ✅ Send Chat Message
+// Send a message
 window.sendMessage = function () {
-  const msgBox = document.getElementById("msgInput");
-  const message = msgBox.value.trim();
-
-  if (message !== "") {
-    const chatRef = ref(db, "chats/" + chatRoom);
-    push(chatRef, {
-      user: currentUser,
-      message: message,
-      time: new Date().toLocaleTimeString()
-    });
-    msgBox.value = "";
-  }
+  const msgInput = document.getElementById("msgInput");
+  const message = msgInput.value.trim();
+  if (message === "") return;
+  push(ref(db, "chats/" + chatRoom), {
+    user: currentUser,
+    message,
+    time: new Date().toLocaleTimeString()
+  });
+  msgInput.value = "";
 };
 
-// ✅ Listen to Chat Messages
-function listenToChat(roomId) {
-  const chatRef = ref(db, "chats/" + roomId);
-  onChildAdded(chatRef, function (snapshot) {
-    const data = snapshot.val();
+// Load messages
+function listenToChat() {
+  const chatRef = ref(db, "chats/" + chatRoom);
+  onChildAdded(chatRef, snap => {
+    const data = snap.val();
     const div = document.createElement("div");
     div.textContent = `[${data.time}] ${data.user}: ${data.message}`;
     div.classList.add("message");
@@ -75,28 +62,9 @@ function listenToChat(roomId) {
   });
 }
 
-// ✅ Start Call
+// Start Call
 window.startCall = async function () {
-  peerConnection = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-  });
-
-  peerConnection.onicecandidate = e => {
-    if (e.candidate) {
-      push(ref(db, `calls/${chatRoom}`), {
-        type: "candidate",
-        candidate: e.candidate.toJSON()
-      });
-    }
-  };
-
-  peerConnection.ontrack = event => {
-    document.getElementById("remoteVideo").srcObject = event.streams[0];
-  };
-
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  document.getElementById("localVideo").srcObject = localStream;
+  await initPeer();
 
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
@@ -106,38 +74,45 @@ window.startCall = async function () {
     sdp: offer
   });
 
-  console.log("📡 Offer pushed...");
+  console.log("📡 Offer sent.");
 };
 
-// ✅ Listen for Offers, Answers, ICE
+// Init peer connection
+async function initPeer() {
+  peerConnection = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  });
+
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  document.getElementById("localVideo").srcObject = localStream;
+
+  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+  peerConnection.ontrack = event => {
+    console.log("🎥 Remote stream received.");
+    document.getElementById("remoteVideo").srcObject = event.streams[0];
+  };
+
+  peerConnection.onicecandidate = e => {
+    if (e.candidate) {
+      push(ref(db, `calls/${chatRoom}`), {
+        type: "candidate",
+        candidate: e.candidate.toJSON()
+      });
+    }
+  };
+}
+
+// Handle all signaling
 function listenForCalls() {
   const signalRef = ref(db, `calls/${chatRoom}`);
   onChildAdded(signalRef, async snap => {
     const data = snap.val();
-    console.log("📩 Signal received:", data.type);
+    if (!peerConnection && data.type !== "offer") return;
 
-    if (!peerConnection) {
-      peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-      });
+    console.log("📩 Signal:", data.type);
 
-      peerConnection.ontrack = event => {
-        document.getElementById("remoteVideo").srcObject = event.streams[0];
-      };
-
-      peerConnection.onicecandidate = e => {
-        if (e.candidate) {
-          push(ref(db, `calls/${chatRoom}`), {
-            type: "candidate",
-            candidate: e.candidate.toJSON()
-          });
-        }
-      };
-
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      document.getElementById("localVideo").srcObject = localStream;
-    }
+    if (!peerConnection) await initPeer();
 
     if (data.type === "offer") {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
@@ -148,16 +123,17 @@ function listenForCalls() {
         type: "answer",
         sdp: answer
       });
+
       console.log("📨 Answer sent.");
     } else if (data.type === "answer") {
       await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
       console.log("✅ Answer received.");
-    } else if (data.type === "candidate" && data.candidate) {
+    } else if (data.type === "candidate") {
       try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-        console.log("🧊 ICE candidate added.");
-      } catch (err) {
-        console.error("❌ Failed to add ICE candidate:", err);
+        console.log("🧊 ICE added.");
+      } catch (e) {
+        console.warn("ICE Error", e);
       }
     }
   });
